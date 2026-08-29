@@ -5,8 +5,9 @@ let master: GainNode | null = null;
 let osc: OscillatorNode | null = null;
 let oscGain: GainNode | null = null;
 let enabled = false;
-let volume = 0.25;
+let volume = 0.55;
 let started = false;
+let lastError = "";
 
 function publish() {
   if (typeof window === "undefined") return;
@@ -14,15 +15,27 @@ function publish() {
     enabled,
     volume,
     started,
+    status: audioStatus(),
     ctxState: ctx?.state ?? null,
     oscFreq: osc?.frequency.value ?? null,
     oscGain: oscGain?.gain.value ?? null,
     masterGain: master?.gain.value ?? null,
+    dest: !!(ctx && master),
+    error: lastError || null,
   };
 }
 
 export function audioEnabled() { return enabled; }
 export function audioVolume() { return volume; }
+export function audioStatus() {
+  if (lastError) return "ERROR";
+  if (!enabled) return "OFF";
+  if (!ctx) return "READY";
+  if (ctx.state === "suspended") return "SUSPENDED";
+  if (ctx.state === "running" && osc) return "RUNNING";
+  if (ctx.state === "running") return "READY";
+  return String(ctx.state).toUpperCase();
+}
 
 export function setAudioEnabled(on: boolean) {
   enabled = on;
@@ -32,56 +45,95 @@ export function setAudioEnabled(on: boolean) {
 
 export function setAudioVolume(v: number) {
   volume = Math.max(0, Math.min(1, v));
-  if (master) master.gain.value = volume;
+  if (master && ctx) master.gain.setTargetAtTime(volume, ctx.currentTime, 0.02);
+  if (oscGain && ctx && enabled) oscGain.gain.setTargetAtTime(0.14 * volume, ctx.currentTime, 0.03);
   publish();
+}
+
+function ensureGraph() {
+  const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  if (!ctx) ctx = new AC();
+  if (!master) {
+    master = ctx.createGain();
+    master.gain.value = volume;
+    master.connect(ctx.destination);
+  }
+  if (!osc) {
+    osc = ctx.createOscillator();
+    oscGain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 440;
+    oscGain.gain.value = 0;
+    osc.connect(oscGain);
+    oscGain.connect(master);
+    osc.start();
+  }
+}
+
+/** Must run inside a click/tap handler — never from rAF. */
+export function unlockFromGesture() {
+  lastError = "";
+  try {
+    enabled = true;
+    ensureGraph();
+    const resume = ctx!.state === "suspended" ? ctx!.resume() : Promise.resolve();
+    started = true;
+    if (osc && oscGain && ctx) {
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      oscGain.gain.cancelScheduledValues(ctx.currentTime);
+      oscGain.gain.setValueAtTime(0.16 * volume, ctx.currentTime);
+    }
+    publish();
+    return resume.then(() => { publish(); return ctx!; }).catch((err) => {
+      lastError = err instanceof Error ? err.message : String(err);
+      publish();
+      return ctx!;
+    });
+  } catch (err) {
+    lastError = err instanceof Error ? err.message : String(err);
+    publish();
+    return Promise.reject(err);
+  }
 }
 
 export async function unlockAudio() {
-  if (started && ctx) { publish(); return ctx; }
-  const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-  ctx = ctx ?? new AC();
-  master = master ?? ctx.createGain();
-  master.gain.value = volume;
-  master.connect(ctx.destination);
-  if (ctx.state === "suspended") await ctx.resume();
-  started = true;
-  publish();
-  return ctx;
+  return unlockFromGesture();
 }
 
 export function stopTone() {
-  if (oscGain && ctx) oscGain.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
-  publish();
-}
-
-export async function setTone(freq: number, amp = 0.08) {
-  if (!enabled) { stopTone(); return; }
-  const ac = await unlockAudio();
-  if (!osc) {
-    osc = ac.createOscillator();
-    oscGain = ac.createGain();
-    osc.type = "sine";
-    oscGain.gain.value = 0;
-    osc.connect(oscGain);
-    oscGain.connect(master!);
-    osc.start();
+  if (oscGain && ctx) {
+    oscGain.gain.cancelScheduledValues(ctx.currentTime);
+    oscGain.gain.setTargetAtTime(0, ctx.currentTime, 0.03);
   }
-  osc.frequency.setTargetAtTime(Math.max(40, Math.min(1800, freq)), ac.currentTime, 0.04);
-  oscGain!.gain.setTargetAtTime(Math.max(0, Math.min(0.2, amp * volume)), ac.currentTime, 0.05);
   publish();
 }
 
-export async function impact(energy: number) {
-  if (!enabled) return;
-  const ac = await unlockAudio();
-  const o = ac.createOscillator();
-  const g = ac.createGain();
+export function muteAndDisable() {
+  enabled = false;
+  stopTone();
+}
+
+/** rAF-safe: never creates or resumes AudioContext. */
+export function setTone(freq: number, amp = 0.12) {
+  if (!enabled || !ctx || ctx.state !== "running" || !osc || !oscGain) return;
+  const f = Number.isFinite(freq) ? freq : 440;
+  osc.frequency.setTargetAtTime(Math.max(180, Math.min(1600, f)), ctx.currentTime, 0.05);
+  oscGain.gain.setTargetAtTime(Math.max(0, Math.min(0.22, amp * volume)), ctx.currentTime, 0.05);
+}
+
+export function impact(energy: number) {
+  if (!enabled || !ctx || ctx.state !== "running" || !master) return;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
   o.type = "triangle";
-  o.frequency.value = 120 + Math.min(800, energy * 40);
-  g.gain.value = Math.min(0.25, 0.04 + energy * 0.02) * volume;
-  o.connect(g); g.connect(master!);
+  o.frequency.value = 180 + Math.min(700, energy * 40);
+  g.gain.value = Math.min(0.28, 0.08 + energy * 0.02) * volume;
+  o.connect(g); g.connect(master);
   o.start();
-  g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.12);
-  o.stop(ac.currentTime + 0.13);
-  publish();
+  g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
+  o.stop(ctx.currentTime + 0.15);
+}
+
+export function resumeIfNeeded() {
+  if (ctx && ctx.state === "suspended") void ctx.resume().then(publish);
 }
