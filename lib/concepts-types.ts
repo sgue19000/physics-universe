@@ -3,11 +3,13 @@ export type Category =
   | "relativity" | "quantum" | "nuclear" | "particle" | "astrophysics" | "cosmology";
 export type Difficulty = "beginner" | "intermediate" | "advanced";
 export type ParamDef = { key: string; label: string; unit: string; min: number; max: number; step: number; default: number };
+export type SimDimension = "2D" | "3D";
 export type Concept = {
   id: string; slug: string; title: string; category: Category; difficulty: Difficulty;
   tagline: string; description: string; intuition: string; explanation: string; theory: string;
   assumptions: string[]; equations: { latex: string; meaning: string; symbols: string }[];
   parameters: ParamDef[]; related: string[]; measurements: string[]; hypotheticalNote?: string;
+  dimension?: SimDimension; audioAvailable?: boolean; aliases?: string[]; simulationType?: string; tryThis?: string;
 };
 export const CATEGORIES: { id: Category; label: string; blurb: string }[] = [
   { id: "mechanics", label: "Mechanics", blurb: "Motion, force, energy, orbits." },
