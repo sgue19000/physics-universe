@@ -18,8 +18,6 @@ export function Lab({ concept }: { concept: Concept }) {
   const [mode, setMode] = useState<"explore" | "learn" | "experiment" | "challenge">("explore");
   const [level, setLevel] = useState(concept.difficulty);
   const [hyp, setHyp] = useState(false);
-  const [pred, setPred] = useState<string | null>(null);
-  const [revealed, setRevealed] = useState(false);
   const [sheet, setSheet] = useState<string | null>("controls");
   const [playingUi, setPlayingUi] = useState(true);
 
@@ -63,10 +61,10 @@ export function Lab({ concept }: { concept: Concept }) {
         if (s.hist.length > 240) s.hist.splice(0, s.hist.length - 240);
       }
       if (audioEnabled() && !document.hidden) {
-        if (concept.slug === "doppler-effect" || concept.slug === "relativistic-doppler") void setTone(s.data.fobs ?? 440, 0.12);
-        else if (concept.slug === "wave-surface") void setTone(220 + (s.data.f ?? 1) * 40, 0.08);
-        else if (concept.slug === "double-pendulum") void setTone(180 + Math.abs(s.data.y?.[1] ?? 0) * 20, 0.05);
-        if (concept.slug === "elastic-collision" && s.data.hit === 1 && !s.data.pinged) { s.data.pinged = 1; void impact(8); }
+        if (concept.slug === "doppler-effect" || concept.slug === "relativistic-doppler") setTone(s.data.fobs ?? 440, 0.12);
+        else if (concept.slug === "wave-surface") setTone(220 + (s.data.f ?? 1) * 40, 0.08);
+        else if (concept.slug === "double-pendulum") setTone(180 + Math.abs(s.data.y?.[1] ?? 0) * 20, 0.05);
+        if (concept.slug === "elastic-collision" && s.data.hit === 1 && !s.data.pinged) { s.data.pinged = 1; impact(8); }
       }
       const cvs = canvasRef.current;
       if (cvs) {
@@ -133,7 +131,7 @@ export function Lab({ concept }: { concept: Concept }) {
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
             {(["explore", "learn", "experiment", "challenge"] as const).map((m) => (
-              <button key={m} onClick={() => { setMode(m); setRevealed(false); setPred(null); }} className={`min-h-11 rounded border px-2 ${mode === m ? "border-accent text-accent" : "border-line text-zinc-400"}`}>{m}</button>
+              <button key={m} onClick={() => setMode(m)} className={`min-h-11 rounded border px-2 ${mode === m ? "border-accent text-accent" : "border-line text-zinc-400"}`}>{m}</button>
             ))}
           </div>
         </div>
@@ -190,10 +188,29 @@ export function Lab({ concept }: { concept: Concept }) {
           {concept.parameters.map((par) => (
             <label key={par.key} className="mt-3 block text-sm">
               <span className="flex justify-between text-zinc-300"><span>{par.label}</span><span className="font-mono text-accent">{s.params[par.key]} {par.unit}</span></span>
-              <input className="w-full" type="range" min={par.min} max={par.max} step={par.step} value={s.params[par.key]} aria-label={`${par.label} {par.unit}"} />
+              <input className="w-full" type="range" min={par.min} max={par.max} step={par.step} value={s.params[par.key]} aria-label={`${par.label} ${par.unit}`} onChange={(e) => setP(par.key, Number(e.target.value))} />
             </label>
           ))}
         </div>
+        <div className="rounded-lg border border-line bg-panel p-3">
+          <p className="text-xs uppercase tracking-widest text-zinc-500">Measurements</p>
+          <ul className="mt-2 space-y-1 font-mono text-sm">{measures.map((m) => <li key={m.k} className="flex justify-between gap-2"><span className="text-zinc-400">{m.k}</span><span>{m.v}</span></li>)}</ul>
+        </div>
+        <div className="flex gap-2 text-xs">
+          {(["beginner", "intermediate", "advanced"] as const).map((lv) => (
+            <button key={lv} onClick={() => setLevel(lv)} className={`rounded border px-2 py-1 ${level === lv ? "border-accent text-accent" : "border-line text-zinc-500"}`}>{lv}</button>
+          ))}
+        </div>
+        {(mode === "learn" || level !== "beginner") && (
+          <article className="space-y-3 text-sm leading-relaxed text-zinc-300">
+            <h2 className="text-base font-medium text-white">What are you seeing?</h2>
+            <p>{concept.description}</p>
+            <h2 className="text-base font-medium text-white">Why does it happen?</h2>
+            <p>{concept.intuition}</p>
+            <h2 className="text-base font-medium text-white">Assumptions</h2>
+            <ul className="list-disc pl-4 text-zinc-400">{concept.assumptions.map((a) => <li key={a}>{a}</li>)}</ul>
+          </article>
+        )}
       </aside>
     </div>
   );
