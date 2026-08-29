@@ -1,65 +1,34 @@
-import { CONCEPTS } from "@/lib/concepts";
+import Link from "next/link";
+import { CATEGORIES, CONCEPTS } from "@/lib/concepts";
 
 export const metadata = { title: "Physics Map", description: "Concept relationship graph." };
 
-const EDGES: [string, string][] = [
-  ["newtons-second-law", "projectile-motion"],
-  ["newtons-second-law", "conservation-of-energy"],
-  ["conservation-of-energy", "pendulum"],
-  ["projectile-motion", "orbital-motion"],
-  ["orbital-motion", "solar-system"],
-  ["orbital-motion", "black-hole"],
-  ["wave-interference", "standing-waves"],
-  ["wave-interference", "double-slit"],
-  ["double-slit", "quantum-double-slit"],
-  ["standing-waves", "particle-in-a-box"],
-  ["particle-in-a-box", "quantum-tunneling"],
-  ["electric-field", "magnetic-field"],
-  ["electric-field", "simple-circuit"],
-  ["ideal-gas", "entropy"],
-  ["time-dilation", "length-contraction"],
-  ["time-dilation", "spacetime-diagram"],
-  ["length-contraction", "spacetime-diagram"],
-  ["elastic-collision", "newtons-second-law"],
-  ["three-body", "orbital-motion"],
-  ["hydrogen-orbitals", "particle-in-a-box"],
-  ["expanding-universe", "black-hole"],
-];
-
 export default function MapPage() {
-  const cols = 6;
-  const rows = Math.ceil(CONCEPTS.length / cols);
-  const height = 80 + rows * 130;
   return (
     <div>
       <h1 className="text-3xl font-semibold">Physics Map</h1>
-      <p className="mt-2 text-zinc-400">Relationships among the catalog concepts. Click a node to open the lab.</p>
-      <svg viewBox={`0 0 800 ${height}`} className="mt-8 w-full rounded-lg border border-line bg-ink" role="img" aria-label="Concept graph">
-        {EDGES.map(([a, b], i) => {
-          const A = CONCEPTS.find((c) => c.slug === a);
-          const B = CONCEPTS.find((c) => c.slug === b);
-          if (!A || !B) return null;
-          const ia = CONCEPTS.indexOf(A);
-          const ib = CONCEPTS.indexOf(B);
-          const ax = 80 + (ia % cols) * 120;
-          const ay = 50 + Math.floor(ia / cols) * 130;
-          const bx = 80 + (ib % cols) * 120;
-          const by = 50 + Math.floor(ib / cols) * 130;
-          return <line key={i} x1={ax} y1={ay} x2={bx} y2={by} stroke="#1c2436" />;
-        })}
-        {CONCEPTS.map((c, i) => {
-          const x = 80 + (i % cols) * 120;
-          const y = 50 + Math.floor(i / cols) * 130;
+      <p className="mt-2 text-zinc-400">All 44 laboratories, grouped by field. Open any node to enter the lab.</p>
+      <div className="mt-8 space-y-8">
+        {CATEGORIES.map((cat) => {
+          const items = CONCEPTS.filter((c) => c.category === cat.id);
+          if (!items.length) return null;
           return (
-            <a key={c.slug} href={`/physics/${c.category}/${c.slug}`}>
-              <circle cx={x} cy={y} r="10" fill="#6ee7ff" />
-              <text x={x} y={y + 28} textAnchor="middle" fill="#9aa4b8" fontSize="10">
-                {c.title.length > 16 ? c.title.slice(0, 16) + "\u2026" : c.title}
-              </text>
-            </a>
+            <section key={cat.id}>
+              <h2 className="text-sm uppercase tracking-widest text-zinc-500">{cat.label}</h2>
+              <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                {items.map((c) => (
+                  <li key={c.slug}>
+                    <Link href={`/physics/${c.category}/${c.slug}`} className="block rounded-lg border border-line bg-ink p-3 hover:border-accent/50">
+                      <p className="font-medium leading-tight">{c.title}</p>
+                      <p className="mt-1 text-xs text-zinc-500">{c.dimension ?? "2D"}{c.audioAvailable ? " · audio" : ""}</p>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
           );
         })}
-      </svg>
+      </div>
     </div>
   );
 }
