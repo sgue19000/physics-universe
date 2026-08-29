@@ -1,16 +1,19 @@
 # Status
 
-Public GitHub: https://github.com/sgue19000/physics-universe
+GitHub: https://github.com/sgue19000/physics-universe
 
-Vercel production deploy is blocked: the connected Vercel account returns HTTP 403 (not authorized) for list_teams and deploy_to_vercel.
+Required source is on `main`:
+- lib/engine.ts
+- lib/engine-draw.ts
+- lib/concepts-part1.ts
+- lib/concepts-part2.ts
+- lib/concepts-part3.ts
+- app routes, Lab UI, tests, Tailwind, Next config
 
-Local project lives at physics-universe/ with the simulation engine, 22 MVP concept models, Vitest checks against analytic projectile / gamma / fringe / tunneling formulas, and the Next.js App Router UI.
+Vercel API from this environment still returns HTTP 403 Not authorized.
 
-To go live from this repo after granting Vercel access:
-
-```
-npm install
-npm test
-npm run build
-vercel --prod
-```
+Manual deploy:
+1. https://vercel.com/new
+2. Import `sgue19000/physics-universe`
+3. Framework: Next.js, Root: `/`
+4. Deploy
