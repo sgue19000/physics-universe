@@ -1,5 +1,6 @@
 import type { SimState } from "./sim-state";
 import { lengthContracted, lorentzGamma, projectileAnalytical, squareWellPsi, twoSlitIntensity, clamp } from "./physics";
+import { drawAdvanced } from "./engine-advanced";
 export function draw(ctx: CanvasRenderingContext2D, w: number, h: number, slug: string, s: SimState) {
   ctx.clearRect(0, 0, w, h); ctx.fillStyle = "#07090f"; ctx.fillRect(0, 0, w, h);
   const p = s.params;
@@ -94,5 +95,7 @@ export function draw(ctx: CanvasRenderingContext2D, w: number, h: number, slug: 
     ctx.fillStyle = "#9aa4b8"; ctx.fillText("Educational visualization — not a rubber sheet, not a full GR tracer.", 12, h - 12);
   } else if (slug === "conservation-of-energy") {
     ctx.fillStyle = "#6ee7ff"; ctx.beginPath(); ctx.arc(40 + ((s.data.s ?? 0) / 3.2) * (w - 80), h - 40 - (s.data.h ?? 0) * 20, 8, 0, 6.28); ctx.fill();
+  } else {
+    drawAdvanced(ctx, w, h, slug, s);
   }
 }
