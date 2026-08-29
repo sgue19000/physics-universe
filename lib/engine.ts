@@ -7,7 +7,7 @@ import {
 
 export type { SimState } from "./sim-state";
 import type { SimState } from "./sim-state";
-
+import { resetAdvanced, stepAdvanced, measureAdvanced } from "./engine-advanced";
 export function defaultState(concept: Concept): SimState {
   const params: Record<string, number> = {};
   for (const p of concept.parameters) params[p.key] = p.default;
@@ -30,6 +30,7 @@ export function reset(concept: Concept, prev?: SimState): SimState {
   if (concept.slug === "conservation-of-energy") { s.data.s = 0; s.data.v = 0; }
   if (concept.slug === "simple-circuit") { s.data.Vc = 0; s.data.charging = 1; }
   if (concept.slug === "projectile-motion") { s.data.alive = 0; }
+  resetAdvanced(concept.slug, s);
   return s;
 }
 
@@ -151,6 +152,8 @@ export function step(slug: string, s: SimState, dtRaw: number) {
       const Mkg = p.M * 1.989e30; s.data.rs = schwarzschildRadius(Mkg); s.data.rph = 1.5 * s.data.rs;
       s.data.dtfactor = gravitationalTimeDilation(3 * s.data.rs, Mkg); break;
     }
+    default:
+      stepAdvanced(slug, s, dt);
   }
   return s;
 }
@@ -182,7 +185,7 @@ export function measureText(slug: string, s: SimState) {
     "solar-system": [{ k: "time", v: `${fmt((d.day ?? 0) / 365, 2)} yr` }],
     "black-hole": [{ k: "r_s", v: `${fmt((d.rs ?? 0) / 1000)} km` }, { k: "photon sphere", v: `${fmt((d.rph ?? 0) / 1000)} km` }],
   };
-  return rows[slug] ?? [];
+  return rows[slug] ?? measureAdvanced(slug, s);
 }
 
 export { draw } from "./engine-draw";
